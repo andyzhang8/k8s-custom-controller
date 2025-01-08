@@ -76,6 +76,7 @@ func createGCEInstance(
                     {Type: "ONE_TO_ONE_NAT"},
                 },
             },
+			
         },
     }
 

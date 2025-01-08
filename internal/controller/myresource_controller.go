@@ -77,21 +77,12 @@ func (r *MyResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 
     desiredCount := myResource.Spec.DesiredCount
     currentCount := myResource.Status.CurrentCount
-    gcpConfig := myResource.Spec.GCPConfig
 
-    if gcpConfig == nil {
-        log.Info("No GCP config found; skipping provisioning.")
-        return ctrl.Result{}, nil
-    }
-
-    // If there's a discrepancy, call out to GCP
-    if desiredCount != currentCount {
-        log.Info("Scaling action needed",
-            "currentCount", currentCount, "desiredCount", desiredCount)
-
+    if myResource.Spec.GCPConfig != nil {
+        log.Info("Using GCP configuration")
         err := cloudclients.UpdateGCPInstances(
             ctx,
-            *gcpConfig,
+            *myResource.Spec.GCPConfig,
             currentCount,
             desiredCount,
         )
@@ -101,26 +92,54 @@ func (r *MyResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
             _ = r.Status().Update(ctx, &myResource)
             return ctrl.Result{}, err
         }
-
-        myResource.Status.CurrentCount = desiredCount
-        if desiredCount > currentCount {
-            myResource.Status.Phase = "ScaledUp"
-        } else {
-            myResource.Status.Phase = "ScaledDown"
-        }
-
-        if err := r.Status().Update(ctx, &myResource); err != nil {
-            log.Error(err, "Failed to update MyResource status")
+    } else if myResource.Spec.AWSConfig != nil {
+        log.Info("Using AWS configuration")
+        err := cloudclients.UpdateAWSInstances(
+            ctx,
+            *myResource.Spec.AWSConfig,
+            currentCount,
+            desiredCount,
+        )
+        if err != nil {
+            log.Error(err, "Failed to update AWS instances")
+            myResource.Status.Phase = "Error"
+            _ = r.Status().Update(ctx, &myResource)
             return ctrl.Result{}, err
         }
-
-        log.Info("Provisioning action succeeded",
-            "currentCount", myResource.Status.CurrentCount,
-            "phase", myResource.Status.Phase)
+    } else if myResource.Spec.AzureConfig != nil {
+        log.Info("Using Azure configuration")
+        err := cloudclients.UpdateAzureInstances(
+            ctx,
+            *myResource.Spec.AzureConfig,
+            currentCount,
+            desiredCount,
+        )
+        if err != nil {
+            log.Error(err, "Failed to update Azure instances")
+            myResource.Status.Phase = "Error"
+            _ = r.Status().Update(ctx, &myResource)
+            return ctrl.Result{}, err
+        }
     } else {
-        log.Info("No scaling action needed; counts match",
-            "currentCount", currentCount, "desiredCount", desiredCount)
+        log.Info("No cloud configuration found; skipping provisioning.")
+        return ctrl.Result{}, nil
     }
+
+    myResource.Status.CurrentCount = desiredCount
+    if desiredCount > currentCount {
+        myResource.Status.Phase = "ScaledUp"
+    } else {
+        myResource.Status.Phase = "ScaledDown"
+    }
+
+    if err := r.Status().Update(ctx, &myResource); err != nil {
+        log.Error(err, "Failed to update MyResource status")
+        return ctrl.Result{}, err
+    }
+
+    log.Info("Provisioning action succeeded",
+        "currentCount", myResource.Status.CurrentCount,
+        "phase", myResource.Status.Phase)
 
     // Return without requeue
     log.Info("Reconciliation complete")
