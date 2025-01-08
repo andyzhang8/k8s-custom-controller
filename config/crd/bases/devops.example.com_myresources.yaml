@@ -1,0 +1,85 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.4
+  name: myresources.devops.example.com
+spec:
+  group: devops.example.com
+  names:
+    kind: MyResource
+    listKind: MyResourceList
+    plural: myresources
+    singular: myresource
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: MyResource is the Schema for the MyResource API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: MyResourceSpec defines the desired state of MyResource.
+            properties:
+              desiredCount:
+                description: |-
+                  DesiredCount is how many GCE instances you want to run.
+                  The controller will reconcile the current number of instances
+                  with this desired count.
+                type: integer
+              gcpConfig:
+                description: GCPConfig holds the parameters for provisioning resources
+                  on GCP.
+                properties:
+                  machineType:
+                    description: Machine type for Compute Engine, e.g., "e2-medium",
+                      "n1-standard-1", etc.
+                    type: string
+                  projectID:
+                    description: Name of the GCP project to provision resources in
+                    type: string
+                  region:
+                    description: Region in which resources should be deployed, e.g.,
+                      "us-central1"
+                    type: string
+                  zone:
+                    description: Zone can be used if you need granular control, e.g.,
+                      "us-central1-a"
+                    type: string
+                type: object
+            type: object
+          status:
+            description: MyResourceStatus defines the observed state of MyResource.
+            properties:
+              currentCount:
+                description: CurrentCount tracks how many GCE instances are actually
+                  running.
+                type: integer
+              phase:
+                description: Phase is a simple string to denote the state, e.g., "Creating",
+                  "Running", "Error", etc.
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
